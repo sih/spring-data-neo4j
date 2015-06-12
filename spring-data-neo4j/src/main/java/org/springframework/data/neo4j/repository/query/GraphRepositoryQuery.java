@@ -12,17 +12,20 @@
 
 package org.springframework.data.neo4j.repository.query;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import org.neo4j.ogm.session.Session;
 import org.springframework.data.repository.query.Parameter;
 import org.springframework.data.repository.query.Parameters;
 import org.springframework.data.repository.query.RepositoryQuery;
 
+import java.util.HashMap;
+import java.util.Map;
+
 
 /**
+ * Specialisation of {@link RepositoryQuery} that handles mapping to object annotated with <code>&#064;Query</code>.
+ *
  * @author Mark Angrish
+ * @author Luanne Misquitta
  */
 public class GraphRepositoryQuery implements RepositoryQuery {
 
@@ -42,13 +45,18 @@ public class GraphRepositoryQuery implements RepositoryQuery {
 
         Map<String, Object> params = resolveParams(parameters);
 
-        return execute(returnType, concreteType, graphQueryMethod.getQuery(), params);
+        return execute(returnType, concreteType, getQueryString(), params);
     }
 
     protected Object execute(Class<?> returnType, Class<?> concreteType, String cypherQuery, Map<String, Object> queryParams) {
-        if (returnType.equals(Void.class)) {
+
+        if (returnType.equals(Void.class) || returnType.equals(void.class)) {
             session.execute(cypherQuery, queryParams);
             return null;
+        }
+
+        if (graphQueryMethod.isModifyingQuery()) {
+            return session.execute(cypherQuery, queryParams);
         }
 
         if (Iterable.class.isAssignableFrom(returnType)) {
@@ -82,6 +90,10 @@ public class GraphRepositoryQuery implements RepositoryQuery {
     @Override
     public GraphQueryMethod getQueryMethod() {
         return graphQueryMethod;
+    }
+
+    protected String getQueryString() {
+        return getQueryMethod().getQuery();
     }
 
 }
