@@ -9,7 +9,7 @@
  * code for these subcomponents is subject to the terms and
  * conditions of the subcomponent's licence, as noted in the LICENSE file.
  */
-package org.springframework.data.neo4j.integration.extensions.domain;
+package org.springframework.data.neo4j.extensions.domain;
 
 /**
  * @author: Vince Bickers
