@@ -15,7 +15,7 @@ package org.springframework.data.neo4j.integration.conversion;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.data.neo4j.integration.conversion.domain.MonetaryAmount;
 
-public class SpringMonetaryAmountToNumberConverter implements Converter<MonetaryAmount, Integer> {
+public class SpringMonetaryAmountToIntegerConverter implements Converter<MonetaryAmount, Integer> {
 
     @Override
     public Integer convert(MonetaryAmount source) {
