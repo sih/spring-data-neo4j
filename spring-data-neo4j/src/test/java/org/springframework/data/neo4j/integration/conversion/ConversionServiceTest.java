@@ -22,6 +22,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.neo4j.cypher.javacompat.ExecutionEngine;
 import org.neo4j.cypher.javacompat.ExecutionResult;
+import org.neo4j.graphdb.Result;
 import org.neo4j.ogm.testutil.Neo4jIntegrationTestRule;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.convert.ConversionService;
@@ -55,8 +56,8 @@ public class ConversionServiceTest {
 
     @Test
     public void shouldActuallyConvertSomeStuffProperlyOutOfGraphDatabase() {
-        ExecutionEngine execEngine = new ExecutionEngine(testRule.getGraphDatabaseService());
-        ExecutionResult rs = execEngine.execute("CREATE (u:SiteMember {profilePictureData:'MTIzNDU2Nzg5'}) RETURN id(u) AS userId");
+        Result rs = testRule.getGraphDatabaseService().execute(
+                "CREATE (u:SiteMember {profilePictureData:'MTIzNDU2Nzg5'}) RETURN id(u) AS userId");
         Long userId = (Long) rs.columnAs("userId").next();
 
         byte[] expectedData = "123456789".getBytes();
