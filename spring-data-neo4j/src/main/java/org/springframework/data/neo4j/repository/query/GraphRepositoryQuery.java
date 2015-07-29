@@ -22,7 +22,10 @@ import org.springframework.data.repository.query.RepositoryQuery;
 
 
 /**
+ * Specialisation of {@link RepositoryQuery} that handles mapping to object annotated with <code>&#064;Query</code>.
+ *
  * @author Mark Angrish
+ * @author Luanne Misquitta
  */
 public class GraphRepositoryQuery implements RepositoryQuery {
 
@@ -42,13 +45,18 @@ public class GraphRepositoryQuery implements RepositoryQuery {
 
         Map<String, Object> params = resolveParams(parameters);
 
-        return execute(returnType, concreteType, graphQueryMethod.getQuery(), params);
+        return execute(returnType, concreteType, getQueryString(), params);
     }
 
     protected Object execute(Class<?> returnType, Class<?> concreteType, String cypherQuery, Map<String, Object> queryParams) {
-        if (returnType.equals(Void.class)) {
+
+        if (returnType.equals(Void.class) || returnType.equals(void.class)) {
             session.execute(cypherQuery, queryParams);
             return null;
+        }
+
+        if (graphQueryMethod.isModifyingQuery()) {
+            return session.execute(cypherQuery, queryParams);
         }
 
         if (Iterable.class.isAssignableFrom(returnType)) {
@@ -64,16 +72,23 @@ public class GraphRepositoryQuery implements RepositoryQuery {
     }
 
     private Map<String, Object> resolveParams(Object[] parameters) {
+
         Map<String, Object> params = new HashMap<>();
         Parameters<?, ?> methodParameters = graphQueryMethod.getParameters();
 
         for (int i = 0; i < parameters.length; i++) {
             Parameter parameter = methodParameters.getParameter(i);
 
+            //The parameter might be an entity, try to resolve its id
+            Object parameterValue = session.resolveGraphIdFor(parameters[i]);
+            if(parameterValue == null) { //Either not an entity or not persisted
+                parameterValue = parameters[i];
+            }
+
             if (parameter.isNamedParameter()) {
-                params.put(parameter.getName(), parameters[i]);
+                params.put(parameter.getName(), parameterValue);
             } else {
-                params.put("" + i, parameters[i]);
+                params.put("" + i, parameterValue);
             }
         }
         return params;
@@ -82,6 +97,10 @@ public class GraphRepositoryQuery implements RepositoryQuery {
     @Override
     public GraphQueryMethod getQueryMethod() {
         return graphQueryMethod;
+    }
+
+    protected String getQueryString() {
+        return getQueryMethod().getQuery();
     }
 
 }

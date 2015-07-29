@@ -29,7 +29,7 @@ public class GraphRepositoryFactoryBean<S extends Repository<T, Long>, T> extend
     private Session session;
 
     @Autowired
-    SessionFactory sessionFactory;
+    private SessionFactory sessionFactory;
 
     @Override
     protected RepositoryFactorySupport doCreateRepositoryFactory() {
@@ -38,7 +38,9 @@ public class GraphRepositoryFactoryBean<S extends Repository<T, Long>, T> extend
 
     @Override
     public void afterPropertiesSet() {
-        setMappingContext(new Neo4jMappingContext(sessionFactory.metaData()));
+        Neo4jMappingContext mappingContext = new Neo4jMappingContext(sessionFactory.metaData());
+        setMappingContext(mappingContext);
         super.afterPropertiesSet();
     }
+
 }

@@ -12,13 +12,8 @@
 
 package org.springframework.data.neo4j.template;
 
-import static org.springframework.data.neo4j.util.IterableUtils.*;
-
-import javax.persistence.PersistenceException;
-import java.util.Collection;
-import java.util.Map;
-
-import org.neo4j.ogm.model.Property;
+import org.neo4j.ogm.cypher.Filter;
+import org.neo4j.ogm.cypher.Filters;
 import org.neo4j.ogm.session.Session;
 import org.neo4j.ogm.session.result.QueryStatistics;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,12 +23,24 @@ import org.springframework.data.neo4j.event.*;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.Assert;
 
+import javax.persistence.PersistenceException;
+import java.util.Collection;
+import java.util.Map;
+
+import static org.springframework.data.neo4j.util.IterableUtils.getSingle;
+import static org.springframework.data.neo4j.util.IterableUtils.getSingleOrNull;
+
 /**
- * Spring Data template for Neo4j.  Implementation of {@link Neo4jOperations}.
+ * Spring Data template for Neo4j, which is an implementation of {@link Neo4jOperations}.  Indeed, framework users are encouraged
+ * to favour coding against the {@link Neo4jOperations} interface rather than the {@link Neo4jTemplate} directly, as the
+ * interface API will be more consistent over time and enhanced proxy objects of the interface may actually be created by Spring
+ * for auto-wiring instead of this template.
  * <p>
- * Please note that all methods on this class throw a {@link PersistenceException} if any underlying {@code Exception} is
- * thrown.  Since {@link PersistenceException} is a runtime exception, this is not documented at the method level.
+ * Note that this class also implements {@link ApplicationEventPublisherAware} and will publish events before data manipulation
+ * operations - specifically delete and save.
  * </p>
+ * Please note also that all methods on this class throw a {@link PersistenceException} if any underlying {@code Exception} is
+ * thrown. Since {@link PersistenceException} is a runtime exception, this is not documented at the method level.
  *
  * @author Adam George
  * @author Michal Bachman
@@ -150,7 +157,25 @@ public class Neo4jTemplate implements Neo4jOperations, ApplicationEventPublisher
     @Override
     public <T> Collection<T> loadAllByProperty(Class<T> type, String name, Object value) {
         try {
-            return session.loadByProperty(type, Property.with(name, value));
+            return session.loadAll(type, new Filter(name, value));
+        } catch (Exception e) {
+            throw new PersistenceException(e);
+        }
+    }
+
+    @Override
+    public <T> T loadByProperties(Class<T> type, Filters parameters) {
+        try {
+            return getSingle(loadAllByProperties(type, parameters));
+        } catch (Exception e) {
+            throw new PersistenceException(e);
+        }
+    }
+
+    @Override
+    public <T> Collection<T> loadAllByProperties(Class<T> type, Filters parameters) {
+        try {
+            return session.loadAll(type, parameters);
         } catch (Exception e) {
             throw new PersistenceException(e);
         }
@@ -158,7 +183,7 @@ public class Neo4jTemplate implements Neo4jOperations, ApplicationEventPublisher
 
     public <T> Collection<T> loadAllByProperty(Class<T> type, String name, Object value, int depth) {
         try {
-            return session.loadByProperty(type, Property.with(name, value), depth);
+            return session.loadAll(type, new Filter(name, value), depth);
         } catch (Exception e) {
             throw new PersistenceException(e);
         }

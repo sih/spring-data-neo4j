@@ -11,154 +11,78 @@
  */
 package org.springframework.data.neo4j.mapping;
 
+import java.beans.PropertyDescriptor;
+import java.lang.reflect.Field;
+
+import org.neo4j.ogm.annotation.Relationship;
+import org.neo4j.ogm.metadata.MappingException;
 import org.neo4j.ogm.metadata.info.ClassInfo;
-import org.neo4j.ogm.metadata.info.FieldInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.mapping.Association;
 import org.springframework.data.mapping.PersistentEntity;
-
-import org.springframework.data.mapping.PersistentProperty;
-import org.springframework.data.util.TypeInformation;
-
-import java.lang.annotation.Annotation;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
+import org.springframework.data.mapping.model.AnnotationBasedPersistentProperty;
+import org.springframework.data.mapping.model.SimpleTypeHolder;
+import org.springframework.data.neo4j.annotation.QueryResult;
 
 /**
  * This class implements Spring Data's PersistentProperty interface, scavenging the required data from the
  * OGM's mapping classes in order to for SDN to play nicely with Spring Data REST.
  *
  * The main thing to note is that this class is effectively a shim for FieldInfo. We don't reload
- * all the mapping information again. 
- * 
+ * all the mapping information again.
+ *
  * We do not yet support getter/setter access to entity properties.
- *
+ * <p>
  * These attributes do not appear to be used/needed for SDN 4 to inter-operate correctly with SD-REST:
- *
- *      mapValueType
- *      typeInformation
- *      isEntity
- *      isMap
- *      isTransient (we never supply transient classes to the Spring mapping context)
- *      isWritable (we don't currently support read-only fields)
- *
+ * </p>
+ * <ul>
+ *   <li>mapValueType</li>
+ *   <li>typeInformation</li>
+ *   <li>isVersionProperty (there is no SDN versioning at this stage)</li>
+ *   <li>isTransient (we never supply transient classes to the Spring mapping context)</li>
+ *   <li>isWritable (we don't currently support read-only fields)</li>
+ * </ul>
  * Consequently their associated getter methods always return default values of null or [true|false]
  * However, because these method calls are not expected, we also log a warning message if they get invoked
  *
- * @author: Vince Bickers
+ * @author Vince Bickers
+ * @author Adam George
  * @since 4.0.0
- *
  */
-public class Neo4jPersistentProperty implements PersistentProperty<Neo4jPersistentProperty> {
+public class Neo4jPersistentProperty extends AnnotationBasedPersistentProperty<Neo4jPersistentProperty> {
 
     private static final Logger logger = LoggerFactory.getLogger(Neo4jPersistentProperty.class);
 
-    private Field field;
-    private Class<?> type;
-    private String name;
-    private boolean isCollectionLike;
-    private boolean isArray;
-    private Neo4jPersistentEntity owner;
-    private boolean isAssociation;
-    private Class<?> rawType;
-    private Class<?> actualType;
-    private Class<?> componentType;
-    private boolean isIdProperty;
+    private final boolean isIdProperty;
 
-    public Neo4jPersistentProperty(Neo4jPersistentEntity owner, ClassInfo classInfo, FieldInfo fieldInfo, boolean idProperty) {
+    /**
+     * Constructs a new {@link Neo4jPersistentProperty} based on the given arguments.
+     *
+     * @param owningClassInfo The {@link ClassInfo} of the object of which the property field is a member
+     * @param field The property {@link Field}
+     * @param descriptor The Java bean {@link PropertyDescriptor}
+     * @param owner The owning {@link PersistentEntity} that corresponds to the given {@code ClassInfo}
+     * @param simpleTypeHolder The {@link SimpleTypeHolder} that dictates whether the type of this property is considered simple
+     *        or not
+     */
+    public Neo4jPersistentProperty(ClassInfo owningClassInfo, Field field, PropertyDescriptor descriptor,
+            PersistentEntity<?, Neo4jPersistentProperty> owner, SimpleTypeHolder simpleTypeHolder) {
+        super(field, descriptor, owner, simpleTypeHolder);
 
-        try {
-            this.field = classInfo.getField(fieldInfo);
-
-            this.owner = owner;
-            this.name = fieldInfo.getName();
-
-            this.type = field.getType();
-            this.rawType = this.type;
-            this.actualType = this.type;   // simple type
-
-            this.isAssociation = !fieldInfo.isSimple();
-            this.isCollectionLike = !fieldInfo.isScalar();
-            this.isArray = fieldInfo.isArray();
-            this.isIdProperty = idProperty;
-
-            if (fieldInfo.isCollection()) {
-                this.actualType = classInfo.getType(fieldInfo.getTypeParameterDescriptor());
-                this.componentType = actualType;
-            } else if (fieldInfo.isArray()) {
-                this.actualType = field.getType().getComponentType();
+        if (owningClassInfo.isInterface() || owningClassInfo.annotationsInfo().get(QueryResult.class.getName()) != null) {
+            // no ID properties on @QueryResult or non-concrete objects
+            this.isIdProperty = false;
+        } else {
+            boolean idProperty = false;
+            try {
+                // crash prevention - hopefully won't be here too long
+                idProperty = owningClassInfo.getField(owningClassInfo.identityField()).equals(field);
+            } catch (MappingException me) {
+                logger.error("Error finding identity field on " + owningClassInfo.name(), me);
             }
-
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+            this.isIdProperty = idProperty;
         }
-    }
-
-    @Override
-    public PersistentEntity<?, Neo4jPersistentProperty> getOwner() {
-        logger.debug("[property].getOwner() returns {}", this.owner);
-        return this.owner;
-    }
-
-    @Override
-    public String getName() {
-        logger.debug("[property].getName() returns {}", this.name);
-        return this.name;
-    }
-
-    @Override
-    public Class<?> getType() {
-        logger.debug("[property].getType() returns {}", this.type);
-        return this.type;
-    }
-
-    @Override
-    public TypeInformation<?> getTypeInformation() {
-        logger.warn("[property].getTypeInformation() called but not implemented");
-        return null;
-    }
-
-    @Override
-    public Iterable<? extends TypeInformation<?>> getPersistentEntityType() {
-        logger.warn("[property].getPersistentEntityType() called but not implemented");
-        return null;
-    }
-
-    @Override
-    public Method getGetter() {
-        logger.debug("[property].getGetter() returns null");   // by design
-        return null;
-    }
-
-    @Override
-    public Method getSetter() {
-        logger.debug("[property].getSetter() returns null");  // by design
-        return null;
-    }
-
-    @Override
-    public Field getField() {
-        logger.debug("[property].getField() returns {}",this.field);
-        return this.field;
-    }
-
-    @Override
-    public String getSpelExpression() {
-        logger.debug("[property].getSpelExpression() returns null"); // by design
-        return null;
-    }
-
-    @Override
-    public Association<Neo4jPersistentProperty> getAssociation() {
-        logger.warn("[property].getAssociation() called but not implemented"); // what is this for?
-        return null;
-    }
-
-    @Override
-    public boolean isEntity() {
-        logger.warn("[property].isEntity() called but not implemented");
-        return false;
     }
 
     @Override
@@ -173,118 +97,35 @@ public class Neo4jPersistentProperty implements PersistentProperty<Neo4jPersiste
         return false;
     }
 
+    /**
+     * Overridden to force field access as opposed to getter method access for simplicity.
+     *
+     * @see org.springframework.data.mapping.model.AnnotationBasedPersistentProperty#usePropertyAccess()
+     */
     @Override
-    public boolean isCollectionLike() {
-        logger.debug("[property].isCollectionLike() returns {}", this.isCollectionLike);
-        return this.isCollectionLike;
-    }
-
-    @Override
-    public boolean isMap() {
-        logger.warn("[property].isMap() called but not implemented");
+    public boolean usePropertyAccess() {
+        logger.debug("[property].usePropertyAccess() returns false");
         return false;
     }
 
-    @Override
-    public boolean isArray() {
-        logger.debug("[property].isArray() returns {}", this.isArray);
-        return this.isArray;
-    }
-
-    @Override
-    public boolean isTransient() {
-        logger.debug("[property].isTransient() returns false");   // by design
-        return false;
-    }
-
-    @Override
-    public boolean isWritable() {
-        logger.debug("[property].isWritable() returns true");   // by design
-        return true;
-    }
-
+    /**
+     * Determines whether or not this property should be considered an association to another entity or whether it's
+     * just a simple property that should be shown as a value.
+     * <p>
+     * This implementation works by looking for non-transient members annotated with <code>@Relationship</code>.
+     * </p>
+     *
+     * @return <code>true</code> if this property is an association to another entity, <code>false</code> if not
+     */
     @Override
     public boolean isAssociation() {
-        logger.debug("[property].isAssociation() returns {}", this.isAssociation);
-        return this.isAssociation;
-    }
-
-    /**
-     * Returns the component type of the type if it is a {@link java.util.Collection}. Will return the type of the key if
-     * the property is a {@link java.util.Map}.
-     *
-     * @return the component type, the map's key type or {@literal null} if neither {@link java.util.Collection} nor
-     *         {@link java.util.Map}.
-     */
-    @Override
-    public Class<?> getComponentType() {
-        logger.debug("[property].getComponentType() returns {}", this.componentType);
-        return this.componentType;
-    }
-
-    /**
-     * Returns the raw type as it's pulled from from the reflected property.
-     *
-     * @return the raw type of the property.
-     */
-    @Override
-    public Class<?> getRawType() {
-        logger.debug("[property].getRawType() returns {}", this.rawType);
-        return this.rawType;
-    }
-
-    /**
-     * Returns the type of the values if the property is a {@link java.util.Map}.
-     *
-     * @return the map's value type or {@literal null} if no {@link java.util.Map}
-     */
-    @Override
-    public Class<?> getMapValueType() {
-        logger.warn("[property].getMapValueType() called but not implemented");
-        return null;
-    }
-
-    /**
-     * Returns the actual type of the property. This will be the original property type if no generics were used, the
-     * component type for collection-like types and arrays as well as the value type for map properties.
-     *
-     * @return
-     */
-    @Override
-    public Class<?> getActualType() {
-        logger.debug("[property].getActualType() returns {}", this.actualType);
-        return this.actualType;
+        // TODO: can we also work out whether the target class is a node/relationship entity?
+        return !isTransient() && isAnnotationPresent(Relationship.class);
     }
 
     @Override
-    public <A extends Annotation> A findAnnotation(Class<A> annotationType) {
-        logger.debug("[property].getAnnotation({}) returns {}", annotationType, field.getAnnotation(annotationType));
-        return field.getAnnotation(annotationType);
+    protected Association<Neo4jPersistentProperty> createAssociation() {
+        return new Association<Neo4jPersistentProperty>(this, null);
     }
 
-    @Override
-    public <A extends Annotation> A findPropertyOrOwnerAnnotation(Class<A> annotationType) {
-        logger.warn("[property].findPropertyOrOwnerAnnotation({}) called but not implemented", annotationType);
-        /**
-        A annotation = findAnnotation(annotationType);
-        if (annotation != null) {
-            return annotation;
-        }
-        return (A) owner.findAnnotation(annotationType);
-        **/
-        return null;
-    }
-
-    @Override
-    public boolean isAnnotationPresent(Class<? extends Annotation> annotationType) {
-        logger.debug("[property].isAnnotationPresent({}) returns {}", annotationType, field.isAnnotationPresent(annotationType));
-        return field.isAnnotationPresent(annotationType);
-    }
-
-    @Override
-    // force to use field access
-    public boolean usePropertyAccess() {
-        logger.debug("[property].usePropertyAccess() returns false");  // by design
-        return false;
-    }
 }
