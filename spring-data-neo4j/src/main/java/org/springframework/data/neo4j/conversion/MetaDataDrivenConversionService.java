@@ -19,8 +19,11 @@ import org.neo4j.ogm.metadata.info.ClassInfo;
 import org.neo4j.ogm.metadata.info.FieldInfo;
 import org.neo4j.ogm.metadata.info.MethodInfo;
 import org.neo4j.ogm.typeconversion.AttributeConverter;
+import org.neo4j.ogm.typeconversion.ConversionCallback;
+import org.neo4j.ogm.typeconversion.ProxyAttributeConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.convert.TypeDescriptor;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.core.convert.support.GenericConversionService;
 
@@ -30,7 +33,7 @@ import org.springframework.core.convert.support.GenericConversionService;
  *
  * @author Adam George
  */
-public class MetaDataDrivenConversionService extends GenericConversionService {
+public class MetaDataDrivenConversionService extends GenericConversionService implements ConversionCallback {
 
     private static final Logger logger = LoggerFactory.getLogger(MetaDataDrivenConversionService.class);
 
@@ -41,13 +44,15 @@ public class MetaDataDrivenConversionService extends GenericConversionService {
      *        mapping layer
      */
     public MetaDataDrivenConversionService(MetaData metaData) {
+        metaData.registerConversionCallback(this);
+
         for (ClassInfo classInfo : metaData.persistentEntities()) {
             for (FieldInfo fieldInfo : classInfo.propertyFields()) {
                 if (fieldInfo.hasConverter()) {
                     addWrappedConverter(fieldInfo.converter());
                 }
             }
-            // TODO: do I need to check the setters too or are programmers obliged to annotate both?
+            // TODO: do we need to check the setters too or are programmers obliged to annotate both?
             for (MethodInfo methodInfo : classInfo.propertyGetters()) {
                 if (methodInfo.hasConverter()) {
                     addWrappedConverter(methodInfo.converter());
@@ -58,10 +63,20 @@ public class MetaDataDrivenConversionService extends GenericConversionService {
 
     @SuppressWarnings({ "unchecked", "rawtypes" })
     private void addWrappedConverter(final AttributeConverter attributeConverter) {
-        Converter<?, ?> converter = new Converter() {
+        if (attributeConverter instanceof ProxyAttributeConverter) {
+            return;
+        }
+
+        Converter<?, ?> toGraphConverter = new Converter() {
             @Override
             public Object convert(Object source) {
                 return attributeConverter.toGraphProperty(source);
+            }
+        };
+        Converter<?, ?> toEntityConverter = new Converter() {
+            @Override
+            public Object convert(Object source) {
+                return attributeConverter.toEntityAttribute(source);
             }
         };
 
@@ -69,12 +84,21 @@ public class MetaDataDrivenConversionService extends GenericConversionService {
         Class<?> sourceType = (Class<?>) pt.getActualTypeArguments()[0];
         Class<?> targetType = (Class<?>) pt.getActualTypeArguments()[1];
 
-        if (canConvert(sourceType, targetType)) {
+        if (canConvert(sourceType, targetType) && canConvert(targetType, sourceType)) {
             logger.info("Not adding Spring-compatible converter for " + attributeConverter.getClass()
                     + " because one that does the same job has already been registered with the ConversionService.");
         } else {
-            addConverter(sourceType, targetType, converter);
+            // It could be argued that this is wrong as it potentially overrides a registered converted that doesn't handle
+            // both directions, but I've decided that it's better to ensure the same converter is used for load and save.
+            addConverter(sourceType, targetType, toGraphConverter);
+            addConverter(targetType, sourceType, toEntityConverter);
         }
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> T convert(Class<?> sourceType, Class<T> targetType, Object value) {
+        return (T) convert(value, TypeDescriptor.valueOf(sourceType), TypeDescriptor.valueOf(targetType));
     }
 
 }
