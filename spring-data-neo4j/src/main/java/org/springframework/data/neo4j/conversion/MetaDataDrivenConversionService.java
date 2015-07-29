@@ -23,7 +23,6 @@ import org.neo4j.ogm.typeconversion.ConversionCallback;
 import org.neo4j.ogm.typeconversion.ProxyAttributeConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.core.convert.TypeDescriptor;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.core.convert.support.GenericConversionService;
 
@@ -96,9 +95,11 @@ public class MetaDataDrivenConversionService extends GenericConversionService im
     }
 
     @Override
-    @SuppressWarnings("unchecked")
-    public <T> T convert(Class<?> sourceType, Class<T> targetType, Object value) {
-        return (T) convert(value, TypeDescriptor.valueOf(sourceType), TypeDescriptor.valueOf(targetType));
+    public <T> T convert(Class<T> targetType, Object value) {
+        if (value == null) {
+            return null;
+        }
+        return convert(value, targetType);
     }
 
 }
