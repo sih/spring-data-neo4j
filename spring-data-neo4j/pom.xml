@@ -10,15 +10,16 @@
     </parent>
 
     <artifactId>spring-data-neo4j</artifactId>
+    <version>4.0.0.M1-ISSUE8</version>
 
     <name>Spring Data Neo4j</name>
 
         <dependencies>
-
+			<!--  sih upgrade to fix https://github.com/sih/ipl-roster/issues/8 -->
             <dependency>
                 <groupId>org.neo4j</groupId>
                 <artifactId>neo4j-ogm</artifactId>
-                <version>1.0.0.M1</version>
+                <version>1.1.1-SNAPSHOT</version>
             </dependency>
 
             <dependency>

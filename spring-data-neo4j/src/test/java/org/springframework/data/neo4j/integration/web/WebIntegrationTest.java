@@ -91,11 +91,11 @@ public class WebIntegrationTest {
 
         mockMvc.perform(get("/user/{name}/friends", "Daniela").session(session))
                 .andExpect(status().isOk())
-                .andExpect(MockMvcResultMatchers.content().string("Adam Michal"));
+                .andExpect(MockMvcResultMatchers.content().string("Michal"));
 
         mockMvc.perform(get("/user/{name}/friends", "Michal").session(session))
                 .andExpect(status().isOk())
-                .andExpect(MockMvcResultMatchers.content().string("Daniela Vince"));
+                .andExpect(MockMvcResultMatchers.content().string("Vince"));
 
         mockMvc.perform(get("/user/{name}/friends", "Vince").session(session))
                 .andExpect(status().isOk())

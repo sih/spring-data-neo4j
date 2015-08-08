@@ -12,9 +12,11 @@
 
 package org.springframework.data.neo4j.integration.web.service;
 
+import org.neo4j.ogm.cypher.Filter;
 import org.neo4j.ogm.model.Property;
 import org.neo4j.ogm.session.Session;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.neo4j.integration.helloworld.domain.World;
 import org.springframework.data.neo4j.integration.web.domain.User;
 import org.springframework.data.neo4j.integration.web.repo.UserRepository;
 import org.springframework.stereotype.Service;
@@ -71,7 +73,8 @@ public class UserServiceImpl implements UserService {
     }
 
     protected Iterable<User> findByProperty(String propertyName, Object propertyValue) {
-        return session.loadByProperty(User.class, new Property(propertyName, propertyValue));
+    	Filter f = new Filter(propertyName, propertyValue);
+    	return session.loadAll(User.class,f);
     }
 
 }

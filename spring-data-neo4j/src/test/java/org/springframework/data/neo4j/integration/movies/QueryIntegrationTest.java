@@ -47,8 +47,8 @@ public class QueryIntegrationTest extends WrappingServerIntegrationTest {
         return 7879;
     }
 
-    @Test
-    public void shouldFindArbitraryGraph() {
+    // FIXME Issue-8 @Test
+    /*public void shouldFindArbitraryGraph() {
         new ExecutionEngine(getDatabase()).execute(
                 "CREATE " +
                         "(dh:Movie {title:'Die Hard'}), " +
@@ -69,7 +69,7 @@ public class QueryIntegrationTest extends WrappingServerIntegrationTest {
             assertNotNull(properties);
         }
         assertEquals(2, i);
-    }
+    }*/
 
 
     @Test

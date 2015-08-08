@@ -4,7 +4,7 @@
 
     <groupId>org.springframework.data</groupId>
     <artifactId>spring-data-neo4j-parent</artifactId>
-    <version>4.0.0.M1</version>
+    <version>4.0.0.M1-ISSUE8</version>
     <packaging>pom</packaging>
 
     <name>*** Spring Data Neo4j - Parent ***</name>
@@ -18,8 +18,6 @@
 
     <modules>
 
-        <module>neo4j-ogm-test</module>
-        <module>neo4j-ogm</module>
         <module>spring-data-neo4j</module>
         <module>spring-data-neo4j-distribution</module>
 
