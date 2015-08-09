@@ -14,6 +14,7 @@ package org.springframework.data.neo4j.repository;
 
 import org.neo4j.ogm.session.Session;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collection;
 
@@ -21,6 +22,7 @@ import java.util.Collection;
  * @author Vince Bickers
  */
 @Repository
+@Transactional
 public class GraphRepositoryImpl<T> implements GraphRepository<T> {
 
     private final Class clazz;
