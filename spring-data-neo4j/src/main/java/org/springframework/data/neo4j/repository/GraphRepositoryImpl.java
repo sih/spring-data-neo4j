@@ -22,7 +22,6 @@ import java.util.Collection;
  * @author Vince Bickers
  */
 @Repository
-@Transactional
 public class GraphRepositoryImpl<T> implements GraphRepository<T> {
 
     private final Class clazz;
